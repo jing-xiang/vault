@@ -12,6 +12,7 @@ export default function SendFromVaultForm({ assets, onSendFromVault }) {
   const [receiver, setReceiver] = useState("");
   const [selectedAsset, setSelectedAsset] = useState("");
   const [closeOutAsset, setCloseOutAsset] = useState(false);
+  //console.log(assets);
 
   const handleDropdownChange = (event) => {
     setSelectedAsset(event.target.value);
@@ -33,11 +34,11 @@ export default function SendFromVaultForm({ assets, onSendFromVault }) {
           >
             Select Asset
           </label>
-          <select value={selectedAsset} onChange={handleDropdownChange}>
-            <option value="">Asset ID</option>
+          <select value={selectedAsset} onChange={handleDropdownChange} className="block text-gray-700 text-sm font-bold mb-2">
+            <option value="" >Asset ID</option>
             {assets.map((n, index) => (
-              <option key={index} value={n["asset-id"]}>
-                {`${n["asset-id"]} - ${n["name"]}`}
+              <option key={index} value={n.asset["asset-id"]}>
+                {`${n.asset["asset-id"]} - ${n.metadata["name"]}`}
               </option>
             ))}
           </select>
@@ -50,7 +51,7 @@ export default function SendFromVaultForm({ assets, onSendFromVault }) {
             To
           </label>
           <input
-            className="w-full"
+            className="w-full text-gray-700 text-sm font-bold mb-2"
             name="to"
             onChange={(e) => setReceiver(e.target.value)}
             value={receiver}
@@ -59,7 +60,7 @@ export default function SendFromVaultForm({ assets, onSendFromVault }) {
           />
         </div>
         <div className="mb-4">
-          <label className="flex items-center">
+          <label className="flex items-center" >
             <input
               type="checkbox"
               name="checkbox1"

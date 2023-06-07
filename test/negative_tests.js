@@ -1,7 +1,7 @@
 import chai from "chai";
 import chaiAsPromised from "chai-as-promised";
 import algosdk from "algosdk";
-import * as algotxn from "../src/algorand";
+import * as algotxn from "../scripts/index.js";
 
 // use chai-as-promise library
 chai.use(chaiAsPromised);

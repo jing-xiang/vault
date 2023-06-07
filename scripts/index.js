@@ -1,7 +1,8 @@
+import * as fs from "fs";
 import * as path from "path";
 import algosdk from "algosdk";
-import { getIndexerClient } from "@/clients";
-const network = process.env.NEXT_PUBLIC_NETWORK || "SandNet";
+import * as dotenv from "dotenv";
+dotenv.config({ path: "./.env.local" });
 
 const algodClient = new algosdk.Algodv2(
   process.env.NEXT_PUBLIC_ALGOD_TOKEN,
@@ -29,6 +30,20 @@ const submitToNetwork = async (signedTxns) => {
     response,
     confirmation,
   };
+};
+
+const getBasicProgramBytes = async (relativeFilePath) => {
+  // Read file for Teal code
+  // console.log(relativeFilePath);
+  const __dirname =
+    "C:/Users/chewj/github-classroom/Algo-Foundry/vault-jing-xiang/";
+  const filePath = path.join(__dirname, relativeFilePath);
+  console.log(filePath);
+  const data = fs.readFileSync(filePath);
+
+  // use algod to compile the program
+  const compiledProgram = await algodClient.compile(data).do();
+  return new Uint8Array(Buffer.from(compiledProgram.result, "base64"));
 };
 
 const readGlobalState = async (appId) => {
@@ -185,8 +200,8 @@ const optIntoAsset = async (fromAccount, assetId) => {
   const suggestedParams = await algodClient.getTransactionParams().do();
 
   const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-    from: fromAccount,
-    to: fromAccount,
+    from: fromAccount.addr,
+    to: fromAccount.addr,
     assetIndex: assetId,
     amount: 0,
     suggestedParams,
@@ -194,6 +209,26 @@ const optIntoAsset = async (fromAccount, assetId) => {
 
   const signedTxn = txn.signTxn(fromAccount.sk);
   return await submitToNetwork(signedTxn);
+};
+
+const getMethodByName = (methodName) => {
+  // Read in the local contract.json file
+  const __dirname =
+    "C:/Users/chewj/github-classroom/Algo-Foundry/vault-jing-xiang/";
+  const source = path.join(
+    __dirname,
+    "assets/artifacts/VaultApp/contract.json"
+  );
+  const buff = fs.readFileSync(source);
+
+  // Parse the json file into an object, pass it to create an ABIContract object
+  const contract = new algosdk.ABIContract(JSON.parse(buff.toString()));
+
+  const method = contract.methods.find((mt) => mt.name === methodName);
+
+  if (method === undefined) throw Error("Method undefined: " + method);
+
+  return method;
 };
 
 const makeATCCall = async (txns) => {
@@ -219,8 +254,7 @@ const makeATCCall = async (txns) => {
 };
 
 const fetchASA = async (algodClient) => {
-  const deployerAddr = process.env.NEXT_PUBLIC_APP_ADDRESS;
-
+  const deployerAddr = process.env.NEXT_PUBLIC_DEPLOYER_ADDR;
   const { assets } = await algodClient.accountInformation(deployerAddr).do();
 
   function base64ToJson(base64String) {
@@ -230,7 +264,7 @@ const fetchASA = async (algodClient) => {
     return jsonObj;
   }
 
-  let nfts = [];
+  let ASA = [];
 
   const indexer_client = getIndexerClient(network);
 
@@ -254,41 +288,18 @@ const fetchASA = async (algodClient) => {
         });
 
       const assetInfo = await algodClient.getAssetByID(asset["asset-id"]).do();
-      const { decimals, total, url } = assetInfo.params;
-
-      const isNFT =
-        url !== undefined &&
-        url.includes("ipfs://") &&
-        total === 1 &&
-        decimals === 0;
-      const deployerHasNFT = asset.amount > 0;
-
-      if (isNFT && deployerHasNFT) {
-        try {
-          const metadata = note;
-          const imgUrl = url.replace(
-            "ipfs://",
-            "https://cloudflare-ipfs.com/ipfs/"
-          );
-
-          if (url != undefined) {
-            nfts.push({
-              asset,
-              assetInfo,
-              metadata,
-              imgUrl,
-            });
-          }
-        } catch (error) {
-          console.log(error);
-          continue;
-        }
-      }
+      nfts.push({
+        asset,
+        assetInfo,
+        metadata,
+        imgUrl,
+      });
     }
   }
 
-  return nfts;
+  return ASA;
 };
+
 const createAssetTransferTxn = async (
   algodClient,
   sender,
@@ -310,29 +321,8 @@ const createAssetTransferTxn = async (
   return txn;
 };
 
-const getMethod = (methodName) => {
-  // Read in the local contract.json file
-  // const __dirname =
-  //   "C:/Users/chewj/github-classroom/Algo-Foundry/vault-jing-xiang/";
-  // const source = path.join(
-  //   __dirname,
-  //   "assets/artifacts/VaultApp/contract.json"
-  // );
-  // const buff = fs.readFileSync(source);
-
-  const data = require("../../assets/artifacts/VaultApp/contract.json");
-
-  // Parse the json file into an object, pass it to create an ABIContract object
-  const contract = new algosdk.ABIContract(data);
-
-  const method = contract.methods.find((mt) => mt.name === methodName);
-
-  if (method === undefined) throw Error("Method undefined: " + method);
-
-  return method;
-};
-
 export {
+  deployDemoApp,
   fundAccount,
   readGlobalState,
   readLocalState,
@@ -340,9 +330,9 @@ export {
   optIntoApp,
   optIntoAsset,
   submitToNetwork,
+  getMethodByName,
   makeATCCall,
   getAlgodClient,
   fetchASA,
   createAssetTransferTxn,
-  getMethod,
 };

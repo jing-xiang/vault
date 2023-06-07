@@ -22,7 +22,7 @@ export default function SendToVaultForm({ onSendToVault }) {
             Asset ID
           </label>
           <input
-            className="w-full"
+            className="w-full block text-gray-700 text-sm font-bold mb-2"
             name="assetId"
             type="text"
             placeholder="Enter asset ID"
@@ -31,5 +31,6 @@ export default function SendToVaultForm({ onSendToVault }) {
         <Button label="Send to Vault" type="submit" />
       </form>
     </div>
+    
   );
 }
