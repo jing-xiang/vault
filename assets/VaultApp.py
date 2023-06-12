@@ -34,16 +34,15 @@ class VaultAppState:
 app = Application("VaultApp", state=VaultAppState())
 
 @app.external
-def update_global(gt: abi.String, *,output: abi.String):
+def update_global(*,output: abi.String):
     Assert(Txn.sender() == Global.creator_address())
     Assert(Txn.rekey_to() == Global.zero_address()),
     Assert(Txn.close_remainder_to() == Global.zero_address()),
-    Assert(Txn.asset_close_to() == Global.zero_address()),
-    Assert(Txn.sender() == app.state.owner.get()),  
+    Assert(Txn.asset_close_to() == Global.zero_address()), 
     return Seq(
-        app.state.owner.set(gt.get()),
+        Assert(Txn.sender() == app.state.owner.get()), 
+        app.state.owner.set(Txn.accounts[1]),
         output.set("Updated global state!"),
-        Txn.accounts[0] = 
     )
 
 
@@ -103,7 +102,7 @@ def withdraw_asa(amount: abi.Uint64, *,output: abi.String):
         Assert(Txn.rekey_to() == Global.zero_address()),
         Assert(Txn.close_remainder_to() == Global.zero_address()),
         Assert(Txn.asset_close_to() == Global.zero_address()),
-        Assert(Txn.sender() == Global.creator_address()),  # Only owner can withdraw ASAs
+        Assert(Txn.sender() == app.state.owner.get()),  # Only owner can withdraw ASAs
         Assert(app.state.asa_balance.get() >= amount.get()),  # Check if there are enough ASAs in the vault
         app.state.asa_balance.set(app.state.asa_balance.get() - amount.get()),
         output.set("updated asa value")
@@ -128,7 +127,7 @@ def update_withdraw_algos(amount: abi.Uint64, *,output: abi.String):
     Assert(Txn.close_remainder_to() == Global.zero_address()),
     Assert(Txn.asset_close_to() == Global.zero_address()),
     withdraw = Seq([
-        Assert(Txn.sender() == Global.creator_address()),  # Only owner can withdraw Algos
+        Assert(Txn.sender() == app.state.owner.get()),  # Only owner can withdraw Algos
         Assert(app.state.algo_balance.get() >= amount.get()),  # Check if there are enough Algos in the vault
         app.state.algo_balance.set(app.state.algo_balance.get() - amount.get()),
         output.set("updated algos value")
@@ -141,7 +140,7 @@ def transferasafromvault(*, output: abi.String):
     Assert(Txn.close_remainder_to() == Global.zero_address()),
     Assert(Txn.asset_close_to() == Global.zero_address()),
     close = Seq([
-        Assert(Txn.sender() == Global.creator_address()),  # Only owner can close out ASAs
+        Assert(Txn.sender() == app.state.owner.get()),  # Only owner can close out ASAs
         Assert(app.state.asa_balance.get() > Int(0)),  # Check if there are ASAs in the vault
     ])
     

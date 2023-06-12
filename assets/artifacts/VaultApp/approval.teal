@@ -6,7 +6,7 @@ intc_0 // 0
 ==
 bnz main_l30
 txna ApplicationArgs 0
-pushbytes 0x3d45a9a0 // "update_global(string)string"
+pushbytes 0x0cfd6942 // "update_global()string"
 ==
 bnz main_l29
 txna ApplicationArgs 0
@@ -306,7 +306,6 @@ intc_0 // 0
 !=
 &&
 assert
-txna ApplicationArgs 1
 callsub updateglobal_0
 store 0
 bytec_1 // 0x151f7c75
@@ -356,11 +355,15 @@ return
 
 // update_global
 updateglobal_0:
-proto 1 1
+proto 0 1
 bytec_0 // ""
+txn Sender
 bytec_2 // "OwnerAddress"
-frame_dig -1
-extract 2 0
+app_global_get
+==
+assert
+bytec_2 // "OwnerAddress"
+txna Accounts 1
 app_global_put
 pushbytes 0x00155570646174656420676c6f62616c20737461746521 // 0x00155570646174656420676c6f62616c20737461746521
 frame_bury 0
@@ -456,7 +459,8 @@ global ZeroAddress
 ==
 assert
 txn Sender
-global CreatorAddress
+bytec_2 // "OwnerAddress"
+app_global_get
 ==
 assert
 txn Sender
@@ -503,7 +507,8 @@ updatewithdrawalgos_8:
 proto 1 1
 bytec_0 // ""
 txn Sender
-global CreatorAddress
+bytec_2 // "OwnerAddress"
+app_global_get
 ==
 assert
 txn Sender
@@ -529,7 +534,8 @@ transferasafromvault_9:
 proto 0 1
 bytec_0 // ""
 txn Sender
-global CreatorAddress
+bytec_2 // "OwnerAddress"
+app_global_get
 ==
 assert
 txn Sender

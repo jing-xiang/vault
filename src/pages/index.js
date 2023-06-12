@@ -9,6 +9,7 @@ import { useWallet } from "@txnlab/use-wallet";
 import algosdk, { decodeUint64, getMethodByName } from "algosdk";
 import common from "mocha/lib/interfaces/common";
 import * as algotxn from "@/algorand";
+import ASA from "@/components/ASA";
 
 const network = process.env.NEXT_PUBLIC_NETWORK || "SandNet";
 const algodClient = getAlgodClient(network);
@@ -29,8 +30,13 @@ export default function Home() {
   const [vaultAlgos, setVaultAlgos] = useState(0);
   const [txnref, setTxnRef] = useState("");
   const [txnUrl, setTxnUrl] = useState("");
-  const { activeAddress, signTransactions, sendTransactions, signer } =
-    useWallet();
+  const {
+    activeAddress,
+    activeAccount,
+    signTransactions,
+    sendTransactions,
+    signer,
+  } = useWallet();
 
   const commonParams = {
     appID,
@@ -56,8 +62,6 @@ export default function Home() {
     };
     loadVaultAlgos();
   }, [activeAddress]);
-
-  console.log(activeAddress);
 
   const getTxnRefUrl = (txId) => {
     if (network === "SandNet") {
@@ -150,6 +154,10 @@ export default function Home() {
 
       console.log(algotxn.readLocalState(creator.addr, appID));
 
+      console.log(
+        await algodClient.accountAssetInformation(appAddress, assetId)
+      );
+
       //refresh
       if (res) {
         setVaultAssets(() => {
@@ -184,7 +192,7 @@ export default function Home() {
       let nfttxn = [
         await algotxn.createAssetTransferTxn(
           algodClient,
-          creator.addr,
+          activeAddress,
           appAddress,
           parseInt(assetId),
           1
@@ -257,6 +265,7 @@ export default function Home() {
         <div>
           <h1 className="text-5xl mb-4">Vault Dapp</h1>
           <h4 className="mb-4">Network: {network}</h4>
+          <h4 className="mb-4">Application ID: {appID}</h4>
           <h4 className="mb-4">No. of vault assets: {vaultAssets.length}</h4>
           <h4 className="mb-4">Vault microAlgos: {vaultAlgos}</h4>
         </div>
@@ -268,6 +277,15 @@ export default function Home() {
               </a>
             </p>
           )}
+          {activeAddress &&
+            vaultAssets.map((item, index) => (
+              <ASA
+                key={index}
+                src={item.imgUrl}
+                metadata={item.metadata}
+                assetId={item.asset["asset-id"]}
+              />
+            ))}
         </div>
         <SendFromVaultForm
           assets={vaultAssets}

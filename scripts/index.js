@@ -56,16 +56,21 @@ const readGlobalState = async (appId) => {
   globalState.forEach((item) => {
     // decode from base64 and utf8
     const formattedKey = decodeURIComponent(Buffer.from(item.key, "base64"));
-
     let formattedValue;
     if (item.value.type === 1) {
-      formattedValue = decodeURIComponent(
-        Buffer.from(item.value.bytes, "base64")
-      );
+      if (formattedKey === "OwnerAddress") {
+        console.log(item.value.bytes);
+        formattedValue = algosdk.encodeAddress(
+          Buffer.from(item.value.bytes, "base64")
+        );
+      } else {
+        formattedValue = decodeURIComponent(
+          Buffer.from(item.value.bytes, "base64")
+        );
+      }
     } else {
       formattedValue = item.value.uint;
     }
-
     gsMap.set(formattedKey, formattedValue);
   });
 
@@ -321,6 +326,32 @@ const createAssetTransferTxn = async (
   return txn;
 };
 
+const accountInfo = async (addr) => {
+  return await algodClient.accountInformation(addr).do();
+};
+
+const getMethod = (methodName) => {
+  // Read in the local contract.json file
+  // const __dirname =
+  //   "C:/Users/chewj/github-classroom/Algo-Foundry/vault-jing-xiang/";
+  // const source = path.join(
+  //   __dirname,
+  //   "assets/artifacts/VaultApp/contract.json"
+  // );
+  // const buff = fs.readFileSync(source);
+
+  const data = require("../assets/artifacts/VaultApp/contract.json");
+
+  // Parse the json file into an object, pass it to create an ABIContract object
+  const contract = new algosdk.ABIContract(data);
+
+  const method = contract.methods.find((mt) => mt.name === methodName);
+
+  if (method === undefined) throw Error("Method undefined: " + method);
+
+  return method;
+};
+
 export {
   deployDemoApp,
   fundAccount,
@@ -335,4 +366,6 @@ export {
   getAlgodClient,
   fetchASA,
   createAssetTransferTxn,
+  accountInfo,
+  getMethod,
 };

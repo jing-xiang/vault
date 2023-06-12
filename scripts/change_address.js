@@ -6,9 +6,10 @@ import {
   optIntoAsset,
   readLocalState,
   readGlobalState,
-} from "../scripts/index.js";
+} from "./index.js";
 import * as dotenv from "dotenv";
 dotenv.config({ path: "./.env.local" });
+import * as algotxn from "./index.js";
 
 const algodClient = new algosdk.Algodv2(
   process.env.NEXT_PUBLIC_ALGOD_TOKEN,
@@ -22,6 +23,7 @@ const algodClient = new algosdk.Algodv2(
   const creator = algosdk.mnemonicToSecretKey(
     process.env.NEXT_PUBLIC_DEPLOYER_MNEMONIC
   );
+  const alt = algosdk.mnemonicToSecretKey(process.env.NEXT_PUBLIC_ALT_MNEMONIC);
   const suggestedParams = await algodClient.getTransactionParams().do();
 
   const commonParams = {
@@ -36,9 +38,7 @@ const algodClient = new algosdk.Algodv2(
   const txn = [
     {
       method: getMethodByName("update_global"),
-      methodArgs: [
-        "I5LYS46CGPBBBTMTUDVKEL5UKSTSBLUGHSYTYVCIUJ3ZEUO4JAS5PK3MJU",
-      ],
+      appAccounts: [alt.addr],
       ...commonParams,
     },
   ];
@@ -46,4 +46,5 @@ const algodClient = new algosdk.Algodv2(
 
   await makeATCCall(txn);
   console.log("Address changed!");
+  await optIntoApp(alt, appID);
 })();

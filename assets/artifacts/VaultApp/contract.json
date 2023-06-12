@@ -3,12 +3,7 @@
     "methods": [
         {
             "name": "update_global",
-            "args": [
-                {
-                    "type": "string",
-                    "name": "gt"
-                }
-            ],
+            "args": [],
             "returns": {
                 "type": "string"
             }

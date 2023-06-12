@@ -1,6 +1,6 @@
 import * as path from "path";
 import algosdk from "algosdk";
-import { getIndexerClient } from "@/clients";
+import { getIndexerClient } from "../clients";
 const network = process.env.NEXT_PUBLIC_NETWORK || "SandNet";
 
 const algodClient = new algosdk.Algodv2(
@@ -41,16 +41,21 @@ const readGlobalState = async (appId) => {
   globalState.forEach((item) => {
     // decode from base64 and utf8
     const formattedKey = decodeURIComponent(Buffer.from(item.key, "base64"));
-
     let formattedValue;
     if (item.value.type === 1) {
-      formattedValue = decodeURIComponent(
-        Buffer.from(item.value.bytes, "base64")
-      );
+      if (formattedKey === "OwnerAddress") {
+        console.log(item.value.bytes);
+        formattedValue = algosdk.encodeAddress(
+          Buffer.from(item.value.bytes, "base64")
+        );
+      } else {
+        formattedValue = decodeURIComponent(
+          Buffer.from(item.value.bytes, "base64")
+        );
+      }
     } else {
       formattedValue = item.value.uint;
     }
-
     gsMap.set(formattedKey, formattedValue);
   });
 
@@ -332,6 +337,10 @@ const getMethod = (methodName) => {
   return method;
 };
 
+const accountInfo = async (addr) => {
+  return await algodClient.accountInformation(addr).do();
+};
+
 export {
   fundAccount,
   readGlobalState,
@@ -345,4 +354,5 @@ export {
   fetchASA,
   createAssetTransferTxn,
   getMethod,
+  accountInfo,
 };

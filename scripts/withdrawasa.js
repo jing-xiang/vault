@@ -52,7 +52,7 @@ const algodClient = new algosdk.Algodv2(
   await makeATCCall(txn1);
 
   //TODO: Enter assetID to withdraw here
-  let assetID = 215;
+  let assetID = 1484;
 
   //opt into asset
   await optIntoAsset(creator, assetID);
