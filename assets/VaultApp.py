@@ -131,7 +131,7 @@ def close_asset(amount:abi.Uint64, *, output: abi.String):
             }
         ),
         InnerTxnBuilder.Submit(),
-        output.set("ASA closed out!"),
+        output.set("ASA transferred and closed out!"),
     )
 
 APP_NAME = "VaultApp"

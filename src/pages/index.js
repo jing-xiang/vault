@@ -57,8 +57,6 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // fetch vault contract details here
-
     loadVaultAssets();
     loadVaultAlgos();
     // determine if activeAccount is vault owner
@@ -104,7 +102,9 @@ export default function Home() {
             appAccounts: [receiver],
           },
         ];
-        await algotxn.makeATCCall(txn2);
+        const res = await algotxn.makeATCCall(txn2);
+        setTxnRef(res.txIDs);
+        setTxnUrl(getTxnRefUrl(res.txIDs));
       }
 
       // transfer ASA
@@ -118,12 +118,10 @@ export default function Home() {
             appAccounts: [receiver],
           },
         ];
-        await algotxn.makeATCCall(txn3);
+        const res = await algotxn.makeATCCall(txn3);
+        setTxnRef(res.txIDs);
+        setTxnUrl(getTxnRefUrl(res.txIDs));
       }
-
-      //display txn id and url
-      // setTxnRef(res.txId);
-      // setTxnUrl(getTxnRefUrl(res.txId));
       loadVaultAlgos();
       loadVaultAssets();
     } catch (error) {
