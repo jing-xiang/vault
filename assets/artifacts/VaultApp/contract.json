@@ -2,88 +2,7 @@
     "name": "VaultApp",
     "methods": [
         {
-            "name": "update_global",
-            "args": [],
-            "returns": {
-                "type": "string"
-            }
-        },
-        {
-            "name": "update_local",
-            "args": [
-                {
-                    "type": "uint64",
-                    "name": "li"
-                }
-            ],
-            "returns": {
-                "type": "string"
-            }
-        },
-        {
-            "name": "deposit_asa",
-            "args": [
-                {
-                    "type": "uint64",
-                    "name": "amount"
-                }
-            ],
-            "returns": {
-                "type": "string"
-            }
-        },
-        {
-            "name": "withdraw_asa",
-            "args": [
-                {
-                    "type": "uint64",
-                    "name": "amount"
-                }
-            ],
-            "returns": {
-                "type": "string"
-            }
-        },
-        {
-            "name": "update_deposit_algos",
-            "args": [
-                {
-                    "type": "uint64",
-                    "name": "amount"
-                }
-            ],
-            "returns": {
-                "type": "string"
-            }
-        },
-        {
-            "name": "update_withdraw_algos",
-            "args": [
-                {
-                    "type": "uint64",
-                    "name": "amount"
-                }
-            ],
-            "returns": {
-                "type": "string"
-            }
-        },
-        {
-            "name": "transferasafromvault",
-            "args": [],
-            "returns": {
-                "type": "string"
-            }
-        },
-        {
-            "name": "transferasafromvaultwithoutclose",
-            "args": [],
-            "returns": {
-                "type": "string"
-            }
-        },
-        {
-            "name": "depositasatovault",
+            "name": "update_owner",
             "args": [],
             "returns": {
                 "type": "string"
@@ -97,21 +16,7 @@
             }
         },
         {
-            "name": "sendasatobuyer",
-            "args": [],
-            "returns": {
-                "type": "string"
-            }
-        },
-        {
-            "name": "sendasatobuyercloseout",
-            "args": [],
-            "returns": {
-                "type": "string"
-            }
-        },
-        {
-            "name": "depositalgos",
+            "name": "transfer_asset",
             "args": [
                 {
                     "type": "uint64",
@@ -123,7 +28,7 @@
             }
         },
         {
-            "name": "receivealgos",
+            "name": "close_asset",
             "args": [
                 {
                     "type": "uint64",

@@ -35,8 +35,7 @@ const submitToNetwork = async (signedTxns) => {
 const getBasicProgramBytes = async (relativeFilePath) => {
   // Read file for Teal code
   // console.log(relativeFilePath);
-  const __dirname =
-    "C:/Users/chewj/github-classroom/Algo-Foundry/vault-jing-xiang/";
+
   const filePath = path.join(__dirname, relativeFilePath);
   console.log(filePath);
   const data = fs.readFileSync(filePath);
@@ -115,16 +114,16 @@ const deployDemoApp = async (fromAccount) => {
 
   // programs
   const approvalProgram = await getBasicProgramBytes(
-    "assets/artifacts/VaultApp/approval.teal"
+    "../assets/artifacts/VaultApp/approval.teal"
   );
   const clearProgram = await getBasicProgramBytes(
-    "assets/artifacts/VaultApp/clear.teal"
+    "../assets/artifacts/VaultApp/clear.teal"
   );
 
   // global / local states
   const numGlobalInts = 0;
   const numGlobalByteSlices = 1;
-  const numLocalInts = 2;
+  const numLocalInts = 0;
   const numLocalByteSlices = 0;
 
   const txn = algosdk.makeApplicationCreateTxnFromObject({
@@ -214,26 +213,6 @@ const optIntoAsset = async (fromAccount, assetId) => {
 
   const signedTxn = txn.signTxn(fromAccount.sk);
   return await submitToNetwork(signedTxn);
-};
-
-const getMethodByName = (methodName) => {
-  // Read in the local contract.json file
-  const __dirname =
-    "C:/Users/chewj/github-classroom/Algo-Foundry/vault-jing-xiang/";
-  const source = path.join(
-    __dirname,
-    "assets/artifacts/VaultApp/contract.json"
-  );
-  const buff = fs.readFileSync(source);
-
-  // Parse the json file into an object, pass it to create an ABIContract object
-  const contract = new algosdk.ABIContract(JSON.parse(buff.toString()));
-
-  const method = contract.methods.find((mt) => mt.name === methodName);
-
-  if (method === undefined) throw Error("Method undefined: " + method);
-
-  return method;
 };
 
 const makeATCCall = async (txns) => {
@@ -361,7 +340,6 @@ export {
   optIntoApp,
   optIntoAsset,
   submitToNetwork,
-  getMethodByName,
   makeATCCall,
   getAlgodClient,
   fetchASA,

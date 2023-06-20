@@ -10,6 +10,7 @@ const algod = getAlgodClient(network);
 
 export default function SendFromVaultForm({ assets, onSendFromVault }) {
   const [receiver, setReceiver] = useState("");
+  const [amount, setamount] = useState("");
   const [selectedAsset, setSelectedAsset] = useState("");
   const [closeOutAsset, setCloseOutAsset] = useState(false);
   //console.log(assets);
@@ -20,7 +21,7 @@ export default function SendFromVaultForm({ assets, onSendFromVault }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    onSendFromVault(Number(selectedAsset), receiver, closeOutAsset);
+    onSendFromVault(Number(selectedAsset), receiver, closeOutAsset, amount);
   };
 
   return (
@@ -38,7 +39,7 @@ export default function SendFromVaultForm({ assets, onSendFromVault }) {
             <option value="" >Asset ID</option>
             {assets.map((n, index) => (
               <option key={index} value={n.asset["asset-id"]}>
-                {`${n.asset["asset-id"]} - ${n.metadata["name"]}`}
+                {`${n.asset["asset-id"]}`}
               </option>
             ))}
           </select>
@@ -57,6 +58,13 @@ export default function SendFromVaultForm({ assets, onSendFromVault }) {
             value={receiver}
             type="text"
             placeholder="Recipient Address"
+          />
+          <input
+            className="w-full block text-gray-700 text-sm font-bold mb-2"
+            name="amount"
+            onChange={(e) => setamount(e.target.value)}
+            type="text"
+            placeholder="Amount"
           />
         </div>
         <div className="mb-4">

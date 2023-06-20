@@ -109,7 +109,7 @@ const deployDemoApp = async (fromAccount) => {
   // global / local states
   const numGlobalInts = 0;
   const numGlobalByteSlices = 1;
-  const numLocalInts = 2;
+  const numLocalInts = 0;
   const numLocalByteSlices = 0;
 
   const txn = algosdk.makeApplicationCreateTxnFromObject({
@@ -246,17 +246,17 @@ const fetchASA = async (algodClient) => {
         .lookupAssetTransactions(asset["asset-id"])
         .do();
       //console.log("assetTxns: ", assetTxns);
-      const acfg_txns = assetTxns.transactions
-        .filter((txn) => txn["tx-type"] === "acfg")
-        .forEach((txns) => {
-          if (txns.note != undefined) {
-            try {
-              note = base64ToJson(txns.note);
-            } catch (e) {
-              console.log(e);
-            }
-          }
-        });
+      // const acfg_txns = assetTxns.transactions
+      //   .filter((txn) => txn["tx-type"] === "acfg")
+      //   .forEach((txns) => {
+      //     if (txns.note != undefined) {
+      //       try {
+      //         note = base64ToJson(txns.note);
+      //       } catch (e) {
+      //         console.log(e);
+      //       }
+      //     }
+      //   });
 
       const assetInfo = await algodClient.getAssetByID(asset["asset-id"]).do();
       const { decimals, total, url } = assetInfo.params;
@@ -270,18 +270,18 @@ const fetchASA = async (algodClient) => {
 
       if (isNFT && deployerHasNFT) {
         try {
-          const metadata = note;
-          const imgUrl = url.replace(
-            "ipfs://",
-            "https://cloudflare-ipfs.com/ipfs/"
-          );
+          // const metadata = note;
+          // const imgUrl = url.replace(
+          //   "ipfs://",
+          //   "https://cloudflare-ipfs.com/ipfs/"
+          // );
 
           if (url != undefined) {
             nfts.push({
               asset,
               assetInfo,
-              metadata,
-              imgUrl,
+              //metadata,
+              //imgUrl,
             });
           }
         } catch (error) {

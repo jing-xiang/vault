@@ -1,13 +1,17 @@
 import { getAlgodClient } from "../clients";
 import Button from "./Button";
+import { useState } from "react";
 
 const network = process.env.NEXT_PUBLIC_NETWORK || "SandNet";
 const algod = getAlgodClient(network);
 
+
 export default function SendToVaultForm({ onSendToVault }) {
+  
+const [amount, setamount] = useState("");
   const handleSubmit = async (e) => {
     e.preventDefault();
-    onSendToVault(Number(e.target[0].value));
+    onSendToVault(Number(e.target[0].value), amount);
   };
 
   return (
@@ -26,6 +30,13 @@ export default function SendToVaultForm({ onSendToVault }) {
             name="assetId"
             type="text"
             placeholder="Enter asset ID"
+          />
+          <input
+            className="w-full block text-gray-700 text-sm font-bold mb-2"
+            name="amount"
+            onChange={(e) => setamount(e.target.value)}
+            type="text"
+            placeholder="Amount"
           />
         </div>
         <Button label="Send to Vault" type="submit" />

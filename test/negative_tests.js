@@ -328,7 +328,7 @@ describe("Negative Tests", function () {
     // write your code here
     const txn = [
       {
-        method: algotxn.getMethod("update_global"),
+        method: algotxn.getMethod("update_admin"),
         appAccounts: [alt.addr],
         ...commonParams,
       },

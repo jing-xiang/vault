@@ -13,9 +13,6 @@ import ASA from "@/components/ASA";
 
 const network = process.env.NEXT_PUBLIC_NETWORK || "SandNet";
 const algodClient = getAlgodClient(network);
-const creator = algosdk.mnemonicToSecretKey(
-  process.env.NEXT_PUBLIC_DEPLOYER_MNEMONIC
-);
 
 // get app ID
 const appID = parseInt(process.env.NEXT_PUBLIC_APP_ID);
@@ -24,12 +21,14 @@ const appAddress = algosdk.getApplicationAddress(appID);
 console.log(appAddress);
 
 const suggestedParams = await algodClient.getTransactionParams().do();
+suggestedParams.fee = 2 * algosdk.ALGORAND_MIN_TX_FEE;
 
 export default function Home() {
   const [vaultAssets, setVaultAssets] = useState([]);
   const [vaultAlgos, setVaultAlgos] = useState(0);
   const [txnref, setTxnRef] = useState("");
   const [txnUrl, setTxnUrl] = useState("");
+  const [isOwner, setIsOwner] = useState(false);
   const {
     activeAddress,
     activeAccount,
@@ -42,25 +41,32 @@ export default function Home() {
     appID,
     sender: activeAddress,
     suggestedParams,
-    signer: signer,
+    signer,
+  };
+  const loadVaultAssets = async () => {
+    //code to load vault assets
+    const assetlist = await algotxn.fetchASA(algodClient);
+    setVaultAssets(assetlist);
+  };
+
+  const loadVaultAlgos = async () => {
+    const accountinformation = await algotxn.accountInfo(appAddress);
+    const algos = accountinformation["amount"];
+    console.log(accountinformation);
+    setVaultAlgos(algos);
   };
 
   useEffect(() => {
     // fetch vault contract details here
-    const loadVaultAssets = async () => {
-      //code to load vault assets
-      const assetlist = await algotxn.fetchASA(algodClient);
-      setVaultAssets(assetlist);
-    };
-    loadVaultAssets();
 
-    const loadVaultAlgos = async () => {
-      //code to load vault algos
-      await algotxn.optIntoApp(creator, appID);
-      const algo_balance = await algotxn.readLocalState(creator.addr, appID);
-      setVaultAlgos(algo_balance.get("microAlgoBalance"));
-    };
+    loadVaultAssets();
     loadVaultAlgos();
+    // determine if activeAccount is vault owner
+    if (activeAddress === process.env.NEXT_PUBLIC_DEPLOYER_ADDR) {
+      setIsOwner(true);
+    } else {
+      setIsOwner(false);
+    }
   }, [activeAddress]);
 
   const getTxnRefUrl = (txId) => {
@@ -73,54 +79,42 @@ export default function Home() {
     return "";
   };
 
-  const handleSendFromVault = async (assetId, receiver, closeOutAsset) => {
+  const handleSendFromVault = async (
+    assetId,
+    receiver,
+    closeOutAsset,
+    amount
+  ) => {
     // add logic to send asset from the vault
-    console.log(assetId, receiver, closeOutAsset);
+    console.log(assetId, receiver, closeOutAsset, amount);
     // payment 1 txn
     const appAddress = algosdk.getApplicationAddress(appID);
-    console.log(receiver);
+    const accountinformation = await algotxn.accountInfo(appAddress);
+    console.log(accountinformation);
 
     try {
-      //opt into asset
-      const optInASATxn =
-        algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-          from: receiver,
-          to: receiver,
-          suggestedParams,
-          assetIndex: assetId,
-          amount: 0,
-        });
-
-      //sign and submit transaction for ASA opt in
-      const payload = [optInASATxn];
-      const groupedTxn = algosdk.assignGroupID(payload);
-      const encodedTxns = groupedTxn.map((txn) =>
-        algosdk.encodeUnsignedTransaction(txn)
-      );
-      const signed = await signTransactions(encodedTxns);
-      const res = await sendTransactions(signed, 4);
-      console.log(res);
-
       //transfer ASA and closeout
       if (closeOutAsset) {
         const txn2 = [
           {
-            method: algotxn.getMethod("sendasatobuyercloseout"),
+            method: algotxn.getMethod("close_asset"),
             ...commonParams,
             appForeignAssets: [assetId],
+            methodArgs: [parseInt(amount)],
             appAccounts: [receiver],
           },
         ];
         await algotxn.makeATCCall(txn2);
       }
 
-      // transfer ASA without closeout
+      // transfer ASA
       else {
         const txn3 = [
           {
-            method: algotxn.getMethod("sendasatobuyer"),
+            method: algotxn.getMethod("transfer_asset"),
             ...commonParams,
             appForeignAssets: [assetId],
+            methodArgs: [parseInt(amount)],
             appAccounts: [receiver],
           },
         ];
@@ -128,74 +122,57 @@ export default function Home() {
       }
 
       //display txn id and url
-      setTxnRef(res.txId);
-      setTxnUrl(getTxnRefUrl(res.txId));
-
-      //update local states
-      const txn4 = [
-        {
-          method: algotxn.getMethod("update_withdraw_algos"),
-          ...commonParams,
-          methodArgs: [100000],
-        },
-      ];
-
-      await algotxn.makeATCCall(txn4);
-
-      const txn5 = [
-        {
-          method: algotxn.getMethod("withdraw_asa"),
-          ...commonParams,
-          methodArgs: [1],
-        },
-      ];
-
-      await algotxn.makeATCCall(txn5);
-
-      console.log(algotxn.readLocalState(creator.addr, appID));
-
-      console.log(
-        await algodClient.accountAssetInformation(appAddress, assetId)
-      );
-
-      //refresh
-      if (res) {
-        setVaultAssets(() => {
-          return vaultAssets.filter(
-            (vaultAssets) => vaultAssets.asset["asset-id"] == vaultAssets
-          );
-        });
-      }
-      await algotxn.fundAccount(creator, appAddress, 1e5);
+      // setTxnRef(res.txId);
+      // setTxnUrl(getTxnRefUrl(res.txId));
+      loadVaultAlgos();
+      loadVaultAssets();
     } catch (error) {
-      console.error("Restricted");
+      //console.error("Restricted accesss.");
+      console.error(error);
+      alert("Receiver not opted in to asset or invalid amount.");
     }
   };
 
-  const handleSendToVault = async (assetId) => {
+  const handleSendToVault = async (assetId, amount) => {
     // add logic to send asset to the vault
+    console.log(amount);
 
     console.log(appAddress);
     try {
-      //opt into asset
-      const txn1 = [
-        {
-          method: algotxn.getMethod("optintoasset"),
-          ...commonParams,
-          appForeignAssets: [assetId],
-        },
-      ];
+      const accountInfo = await algodClient
+        .accountInformation(algosdk.getApplicationAddress(appID))
+        .do();
+      const hasOptedIn = accountInfo.assets.find(
+        (x) => x["asset-id"] == assetId
+      );
+      if (!hasOptedIn) {
+        const txn = [
+          {
+            txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+              from: activeAddress,
+              to: appAddress,
+              amount: 100000,
+              suggestedParams,
+            }),
+            signer: signer,
+          },
+          {
+            method: algotxn.getMethod("optintoasset"),
+            ...commonParams,
+            appForeignAssets: [assetId],
+          },
+        ];
+        await algotxn.makeATCCall(txn);
+      }
 
-      await algotxn.makeATCCall(txn1);
-
-      // transfer ASA
+      // proceed to transfer ASA
       let nfttxn = [
         await algotxn.createAssetTransferTxn(
           algodClient,
           activeAddress,
           appAddress,
           parseInt(assetId),
-          1
+          Number(amount)
         ),
       ];
       console.log(nfttxn);
@@ -216,40 +193,37 @@ export default function Home() {
       //display txn id and url
       setTxnRef(res.txId);
       setTxnUrl(getTxnRefUrl(res.txId));
-      //update local state
-      algotxn.optIntoApp(creator, appID);
-      const txn2 = [
-        {
-          method: algotxn.getMethod("deposit_asa"),
-          ...commonParams,
-          methodArgs: [1],
-        },
-      ];
-      await algotxn.makeATCCall(txn2);
-
-      const txn3 = [
-        {
-          method: algotxn.getMethod("update_deposit_algos"),
-          ...commonParams,
-          methodArgs: [100000],
-        },
-      ];
-
-      await algotxn.makeATCCall(txn3);
-      algotxn.fundAccount(creator, appAddress, 1e5);
 
       //refresh
-      if (res) {
-        setVaultAssets(() => {
-          return vaultAssets.filter(
-            (vaultAssets) => vaultAssets.asset["asset-id"] === vaultAssets
-          );
-        });
-      }
+      loadVaultAlgos();
+      loadVaultAssets();
     } catch (error) {
-      console.error("asset not found");
       alert("Asset unavailable or invalid wallet");
     }
+  };
+
+  const onBuyASA = async (assetId) => {
+    console.log(activeAddress);
+
+    //Transaction - Buyer opts into the NFT
+    const optInASATxn =
+      algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        from: activeAddress,
+        to: activeAddress,
+        suggestedParams,
+        assetIndex: assetId,
+        amount: 0,
+      });
+
+    //sign and submit transaction for ASA opt in
+    const payload = [optInASATxn];
+    const groupedTxn = algosdk.assignGroupID(payload);
+    const encodedTxns = groupedTxn.map((txn) =>
+      algosdk.encodeUnsignedTransaction(txn)
+    );
+    const signed = await signTransactions(encodedTxns);
+    const res = await sendTransactions(signed, 4);
+    console.log(res);
   };
 
   return (
@@ -284,14 +258,17 @@ export default function Home() {
                 src={item.imgUrl}
                 metadata={item.metadata}
                 assetId={item.asset["asset-id"]}
+                onButtonClick={() => onBuyASA(item.asset["asset-id"])}
               />
             ))}
         </div>
-        <SendFromVaultForm
-          assets={vaultAssets}
-          onSendFromVault={handleSendFromVault}
-        />
-        <SendToVaultForm onSendToVault={handleSendToVault} />
+        {isOwner && (
+          <SendFromVaultForm
+            assets={vaultAssets}
+            onSendFromVault={handleSendFromVault}
+          />
+        )}
+        {isOwner && <SendToVaultForm onSendToVault={handleSendToVault} />}
       </main>
     </>
   );

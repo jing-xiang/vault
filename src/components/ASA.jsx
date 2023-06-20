@@ -10,6 +10,7 @@ function ASA({ src, metadata, assetId, onButtonClick }) {
           <span>Asset ID: {assetId}</span>
           <pre className="p-4">{JSON.stringify(metadata, null, 2)}</pre>
         </div>
+        <Button label="Get ASA" onClick={() => onButtonClick(assetId)} />
       </div>
     </div>
   );

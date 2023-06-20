@@ -272,7 +272,7 @@ describe("Success Tests", function () {
     //change owner to buyer address
     const txn = [
       {
-        method: algotxn.getMethod("update_global"),
+        method: algotxn.getMethod("update_admin"),
         appAccounts: [buyer.addr],
         appID,
         sender: creator.addr,
@@ -347,7 +347,7 @@ describe("Success Tests", function () {
     // write your code here
     const txn = [
       {
-        method: algotxn.getMethod("update_global"),
+        method: algotxn.getMethod("update_admin"),
         appAccounts: [buyer.addr],
         ...commonParams,
       },

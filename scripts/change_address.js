@@ -1,6 +1,5 @@
 import algosdk from "algosdk";
 import {
-  getMethodByName,
   makeATCCall,
   optIntoApp,
   optIntoAsset,
@@ -32,12 +31,11 @@ const algodClient = new algosdk.Algodv2(
     suggestedParams,
     signer: algosdk.makeBasicAccountTransactionSigner(creator),
   };
-  await optIntoApp(creator, appID);
 
   //update owner address
   const txn = [
     {
-      method: getMethodByName("update_global"),
+      method: algotxn.getMethod("update_owner"),
       appAccounts: [alt.addr],
       ...commonParams,
     },
@@ -46,5 +44,6 @@ const algodClient = new algosdk.Algodv2(
 
   await makeATCCall(txn);
   console.log("Address changed!");
-  await optIntoApp(alt, appID);
+  const appGS = await readGlobalState(appID);
+  console.log(appGS);
 })();
