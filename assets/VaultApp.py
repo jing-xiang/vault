@@ -18,9 +18,7 @@ app = Application("VaultApp", state=VaultAppState())
 
 @app.external(authorize=Authorize.only(app.state.owner.get()))
 def update_owner(*,output: abi.String, ):
-    Assert(Txn.rekey_to() == Global.zero_address()),
-    Assert(Txn.close_remainder_to() == Global.zero_address()),
-    Assert(Txn.asset_close_to() == Global.zero_address()), 
+    Assert(basic_checks()),
     return Seq(
         Assert(Txn.sender() == app.state.owner.get()), 
         app.state.owner.set(Txn.accounts[1]),
@@ -60,6 +58,7 @@ def optintoasset(*, output: abi.String):
                 TxnField.xfer_asset: Txn.assets[0],  # ASA index
                 TxnField.asset_receiver: Global.current_application_address(),
                 TxnField.asset_amount: Int(0),
+                TxnField.fee: Int(0),
             }
         ),
         InnerTxnBuilder.Submit(),

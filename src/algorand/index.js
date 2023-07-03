@@ -341,6 +341,66 @@ const accountInfo = async (addr) => {
   return await algodClient.accountInformation(addr).do();
 };
 
+const signAndSubmit = async (algodClient, txns, signer) => {
+  // used by backend to sign and submit txns
+  const groupedTxns = algosdk.assignGroupID(txns);
+
+  const signedTxns = groupedTxns.map((txn) => txn.signTxn(signer.sk));
+
+  const response = await algodClient.sendRawTransaction(signedTxns).do();
+
+  const confirmation = await algosdk.waitForConfirmation(
+    algodClient,
+    response.txId,
+    4
+  );
+
+  return {
+    response,
+    confirmation,
+  };
+};
+
+//any valid asset ID from creator account
+const createAsset = async (maker) => {
+  const total = 1000; // total supply
+  const decimals = 0; // units of this asset are whole-integer amounts
+  const assetName = "Fungible Token"; //token asset name
+  const unitName = "FT"; //token unit name
+  const metadata = undefined;
+  const defaultFrozen = false; // whether accounts should be frozen by default
+
+  // create suggested parameters
+  const suggestedParams = await algodClient.getTransactionParams().do();
+
+  // create the asset creation transaction
+  const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
+    from: maker.addr,
+    total,
+    decimals,
+    assetName,
+    unitName,
+    assetURL: "ipfs://cid",
+    assetMetadataHash: metadata,
+    defaultFrozen,
+    freeze: undefined,
+    manager: undefined,
+    clawback: undefined,
+    reserve: undefined,
+
+    suggestedParams,
+  });
+
+  // sign the transaction and submit to network
+  // sign and submit the transaction
+  const { confirmation } = await signAndSubmit(algodClient, [txn], maker);
+
+  // Extract the asset ID from the confirmation object
+  const assetId = confirmation["asset-index"];
+
+  return assetId;
+};
+
 export {
   fundAccount,
   readGlobalState,
@@ -355,4 +415,6 @@ export {
   createAssetTransferTxn,
   getMethod,
   accountInfo,
+  signAndSubmit,
+  createAsset,
 };

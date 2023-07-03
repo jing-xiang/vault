@@ -1,9 +1,8 @@
 import chai from "chai";
 import chaiAsPromised from "chai-as-promised";
-import algosdk, { mnemonicToSecretKey } from "algosdk";
+import algosdk from "algosdk";
 import * as algotxn from "../scripts/index.js";
-
-let assetID = 8461;
+import { createAsset, signAndSubmit } from "../src/algorand/index.js";
 
 // use chai-as-promise library
 chai.use(chaiAsPromised);
@@ -16,107 +15,99 @@ const algodClient = new algosdk.Algodv2(
 );
 
 describe("Negative Tests", function () {
-  // write your code here
-  let appID, appAddress;
-  //if creator is another account
+  let appID, appAddress, buyer, alt;
   const creator = algosdk.mnemonicToSecretKey(
     process.env.NEXT_PUBLIC_DEPLOYER_MNEMONIC
   );
-  const alt = algosdk.generateAccount();
+
   this.beforeEach(async () => {
     // deploy app
+    buyer = algosdk.generateAccount();
+    alt = algosdk.mnemonicToSecretKey(process.env.NEXT_PUBLIC_ALT_MNEMONIC);
+
     const { confirmation } = await algotxn.deployDemoApp(creator);
     appID = confirmation["application-index"];
 
-    // fund contract and alt address with 1.1 Algos
+    // fund contract and buyer with 1.1 Algos
     appAddress = algosdk.getApplicationAddress(appID);
     await algotxn.fundAccount(creator, appAddress, 1e6 + 1e5);
-    await algotxn.fundAccount(creator, alt.addr, 1e6 + 1e5);
+
+    await algotxn.fundAccount(creator, buyer.addr, 1e6 + 1e5);
   });
 
   it("Non owner cannot send ASAs to the vault", async () => {
-    // write your code here
+    const assetID = await createAsset(buyer);
     const suggestedParams = await algodClient.getTransactionParams().do();
+    suggestedParams.fee = 2 * algosdk.ALGORAND_MIN_TX_FEE;
     const commonParams = {
       appID,
-      sender: alt.addr,
+      sender: buyer.addr,
       suggestedParams,
-      signer: algosdk.makeBasicAccountTransactionSigner(alt),
+      signer: algosdk.makeBasicAccountTransactionSigner(buyer),
     };
-    await algotxn.optIntoApp(alt, appID);
-    const txn1 = [
+
+    const txn = [
+      {
+        txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          from: buyer.addr,
+          to: appAddress,
+          amount: 100000,
+          suggestedParams,
+        }),
+        signer: algosdk.makeBasicAccountTransactionSigner(buyer),
+      },
       {
         method: algotxn.getMethod("optintoasset"),
         ...commonParams,
         appForeignAssets: [assetID],
       },
     ];
+    await expect(algotxn.makeATCCall(txn)).to.be.rejectedWith(Error);
 
-    await expect(algotxn.makeATCCall(txn1)).to.be.rejectedWith(Error);
-    // transfer ASA
     let nfttxn = [
       await algotxn.createAssetTransferTxn(
         algodClient,
-        alt.addr,
+        buyer.addr,
         appAddress,
         parseInt(assetID),
         1
       ),
     ];
 
-    const groupedTxn = algosdk.assignGroupID(nfttxn);
-    // Sign
-    const signedTxns = groupedTxn.map((txn) => txn.signTxn(alt.sk));
-
-    const response = await expect(
-      algodClient.sendRawTransaction(signedTxns).do()
-    ).to.be.rejectedWith(Error);
-    const confirmation = expect(
-      algosdk.waitForConfirmation(algodClient, response.txId, 4)
-    ).to.be.rejectedWith(Error);
-    const txn2 = [
-      {
-        method: algotxn.getMethod("deposit_asa"),
-        ...commonParams,
-        methodArgs: [1],
-      },
-    ];
-    await expect(algotxn.makeATCCall(txn2)).to.be.rejectedWith(Error);
-
-    const txn3 = [
-      {
-        method: algotxn.getMethod("update_deposit_algos"),
-        ...commonParams,
-        methodArgs: [100000],
-      },
-    ];
-
-    await expect(algotxn.makeATCCall(txn3)).to.be.rejectedWith(Error);
+    await expect(signAndSubmit(algodClient, nfttxn, buyer)).to.be.rejectedWith(
+      Error
+    );
   });
 
   it("Non owner cannot transfer ASAs from the vault", async () => {
-    // write your code here
+    const assetID = await createAsset(creator);
     const suggestedParams = await algodClient.getTransactionParams().do();
+    suggestedParams.fee = 2 * algosdk.ALGORAND_MIN_TX_FEE;
     const commonParams = {
       appID,
-      sender: alt.addr,
+      sender: creator.addr,
       suggestedParams,
-      signer: algosdk.makeBasicAccountTransactionSigner(alt),
+      signer: algosdk.makeBasicAccountTransactionSigner(creator),
     };
-    await algotxn.optIntoApp(creator, appID);
-    const opt = [
+
+    const txn = [
+      {
+        txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          from: creator.addr,
+          to: appAddress,
+          amount: 100000,
+          suggestedParams,
+        }),
+        signer: algosdk.makeBasicAccountTransactionSigner(creator),
+      },
       {
         method: algotxn.getMethod("optintoasset"),
-        appID,
-        sender: creator.addr,
-        suggestedParams,
-        signer: algosdk.makeBasicAccountTransactionSigner(creator),
+        ...commonParams,
         appForeignAssets: [assetID],
       },
     ];
+    await algotxn.makeATCCall(txn);
 
-    await algotxn.makeATCCall(opt);
-    // transfer ASA
     let nfttxn = [
       await algotxn.createAssetTransferTxn(
         algodClient,
@@ -126,103 +117,59 @@ describe("Negative Tests", function () {
         1
       ),
     ];
-    console.log(nfttxn);
-    const groupedTxns = algosdk.assignGroupID(nfttxn);
 
-    // Sign
-    const signedTxn = groupedTxns.map((txn) => txn.signTxn(creator.sk));
-    const resp = await algodClient.sendRawTransaction(signedTxn).do();
-
-    const confirm = await algosdk.waitForConfirmation(
-      algodClient,
-      resp.txId,
-      4
-    );
-    console.log(confirm);
-
-    const deposit = [
-      {
-        method: algotxn.getMethod("deposit_asa"),
-        appID,
-        sender: creator.addr,
-        suggestedParams,
-        signer: algosdk.makeBasicAccountTransactionSigner(creator),
-        methodArgs: [1],
-      },
-    ];
-    await algotxn.makeATCCall(deposit);
+    await signAndSubmit(algodClient, nfttxn, creator);
 
     await algotxn.optIntoAsset(alt, assetID);
 
-    const txn1 = [
+    //transfer ASA
+    const transferfromvault = [
       {
-        method: algotxn.getMethod("sendasatobuyer"),
-        ...commonParams,
-        appForeignAssets: [assetID],
+        method: algotxn.getMethod("transfer_asset"),
+        appID,
+        sender: buyer.addr,
+        suggestedParams,
+        signer: algosdk.makeBasicAccountTransactionSigner(buyer),
+        appForeignAssets: [parseInt(assetID)],
+        methodArgs: [parseInt(1)],
         appAccounts: [alt.addr],
       },
     ];
-    await expect(algotxn.makeATCCall(txn1)).to.be.rejectedWith(Error);
-
-    const txn2 = [
-      {
-        method: algotxn.getMethod("update_withdraw_algos"),
-        ...commonParams,
-        methodArgs: [100000],
-      },
-    ];
-
-    await expect(algotxn.makeATCCall(txn2)).to.be.rejectedWith(Error);
-
-    const txn3 = [
-      {
-        method: algotxn.getMethod("withdraw_asa"),
-        ...commonParams,
-        methodArgs: [1],
-      },
-    ];
-
-    await expect(algotxn.makeATCCall(txn3)).to.be.rejectedWith(Error);
-
-    await algotxn.optIntoAsset(creator, assetID);
-
-    // transfer NFT
-    const withdraw = [
-      {
-        method: algotxn.getMethod("transferasafromvault"),
-        appID,
-        sender: creator.addr,
-        suggestedParams,
-        signer: algosdk.makeBasicAccountTransactionSigner(creator),
-        appForeignAssets: [assetID],
-      },
-    ];
-
-    await algotxn.makeATCCall(withdraw);
+    //non owner cannot transfer asa from vault
+    await expect(algotxn.makeATCCall(transferfromvault)).to.be.rejectedWith(
+      Error
+    );
   });
 
   it("Non owner cannot close out ASAs from the vault", async () => {
+    const assetID = await createAsset(creator);
     const suggestedParams = await algodClient.getTransactionParams().do();
+    suggestedParams.fee = 2 * algosdk.ALGORAND_MIN_TX_FEE;
+
     const commonParams = {
       appID,
-      sender: alt.addr,
+      sender: creator.addr,
       suggestedParams,
-      signer: algosdk.makeBasicAccountTransactionSigner(alt),
+      signer: algosdk.makeBasicAccountTransactionSigner(creator),
     };
-    await algotxn.optIntoApp(creator, appID);
-    const opt = [
+    const grouptxn = [
+      {
+        txn: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          from: creator.addr,
+          to: appAddress,
+          amount: 100000,
+          suggestedParams,
+        }),
+        signer: algosdk.makeBasicAccountTransactionSigner(creator),
+      },
       {
         method: algotxn.getMethod("optintoasset"),
-        appID,
-        sender: creator.addr,
-        suggestedParams,
-        signer: algosdk.makeBasicAccountTransactionSigner(creator),
+        ...commonParams,
         appForeignAssets: [assetID],
       },
     ];
+    await algotxn.makeATCCall(grouptxn);
 
-    await algotxn.makeATCCall(opt);
-    // transfer ASA
     let nfttxn = [
       await algotxn.createAssetTransferTxn(
         algodClient,
@@ -232,107 +179,45 @@ describe("Negative Tests", function () {
         1
       ),
     ];
-    console.log(nfttxn);
-    const groupedTxns = algosdk.assignGroupID(nfttxn);
 
-    // Sign
-    const signedTxn = groupedTxns.map((txn) => txn.signTxn(creator.sk));
-    const resp = await algodClient.sendRawTransaction(signedTxn).do();
-
-    const confirm = await algosdk.waitForConfirmation(
-      algodClient,
-      resp.txId,
-      4
-    );
-    console.log(confirm);
-
-    const deposit = [
-      {
-        method: algotxn.getMethod("deposit_asa"),
-        appID,
-        sender: creator.addr,
-        suggestedParams,
-        signer: algosdk.makeBasicAccountTransactionSigner(creator),
-        methodArgs: [1],
-      },
-    ];
-    await algotxn.makeATCCall(deposit);
+    await signAndSubmit(algodClient, nfttxn, creator);
+    const appInfo = await algotxn.accountInfo(appAddress);
 
     await algotxn.optIntoAsset(alt, assetID);
 
-    const txn1 = [
+    const txn2 = [
       {
-        method: algotxn.getMethod("sendasatobuyercloseout"),
-        ...commonParams,
+        method: algotxn.getMethod("close_asset"),
+        appID,
+        sender: buyer.addr,
+        suggestedParams,
+        signer: algosdk.makeBasicAccountTransactionSigner(buyer),
         appForeignAssets: [assetID],
+        methodArgs: [parseInt(1)],
         appAccounts: [alt.addr],
       },
     ];
-    await expect(algotxn.makeATCCall(txn1)).to.be.rejectedWith(Error);
-
-    const txn2 = [
-      {
-        method: algotxn.getMethod("update_withdraw_algos"),
-        ...commonParams,
-        methodArgs: [100000],
-      },
-    ];
-
+    //non owner cannot close out asa from vault
     await expect(algotxn.makeATCCall(txn2)).to.be.rejectedWith(Error);
-
-    const txn3 = [
-      {
-        method: algotxn.getMethod("withdraw_asa"),
-        ...commonParams,
-        methodArgs: [1],
-      },
-    ];
-
-    await expect(algotxn.makeATCCall(txn3)).to.be.rejectedWith(Error);
-
-    await expect(algotxn.readLocalState(alt.addr, appID)).to.be.rejectedWith(
-      Error
-    );
-
-    await algotxn.optIntoApp(creator, appID);
-    //check whether asset is closed out by the alt account
-    const updatedappinfo = await algotxn.accountInfo(appAddress);
-    assert.equal(updatedappinfo.assets.length, 1);
-    await algotxn.optIntoAsset(creator, assetID);
-    // transfer NFT
-    const withdraw = [
-      {
-        method: algotxn.getMethod("transferasafromvault"),
-        appID,
-        sender: creator.addr,
-        suggestedParams,
-        signer: algosdk.makeBasicAccountTransactionSigner(creator),
-        appForeignAssets: [assetID],
-      },
-    ];
-
-    await algotxn.makeATCCall(withdraw);
   });
 
   it("Non owner cannot change owner address", async () => {
-    // write your code here
     const suggestedParams = await algodClient.getTransactionParams().do();
+    suggestedParams.fee = 2 * algosdk.ALGORAND_MIN_TX_FEE;
     const commonParams = {
       appID,
-      sender: alt.addr,
+      sender: buyer.addr,
       suggestedParams,
-      signer: algosdk.makeBasicAccountTransactionSigner(alt),
+      signer: algosdk.makeBasicAccountTransactionSigner(buyer),
     };
-    await algotxn.optIntoApp(alt, appID);
-
-    // write your code here
     const txn = [
       {
-        method: algotxn.getMethod("update_admin"),
+        method: algotxn.getMethod("update_owner"),
         appAccounts: [alt.addr],
         ...commonParams,
       },
     ];
+    //non owner cannot change owner address
     await expect(algotxn.makeATCCall(txn)).to.be.rejectedWith(Error);
   });
 });

@@ -188,6 +188,8 @@ global CurrentApplicationAddress
 itxn_field AssetReceiver
 intc_0 // 0
 itxn_field AssetAmount
+intc_0 // 0
+itxn_field Fee
 itxn_submit
 pushbytes 0x000d415341204f7074656420696e21 // 0x000d415341204f7074656420696e21
 frame_bury 0
